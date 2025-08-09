@@ -12,6 +12,7 @@ from .types import (
     JobStatusResponse,
     ScreenshotRequest,
     ScreenshotCreateResponse,
+    ScreenshotGetResponse,
     WatchCreateRequest,
     WatchCreateResponse,
     WatchGetResponse,
@@ -94,6 +95,12 @@ class SupacrawlerClient:
         resp = self._client.post(url, headers=self._headers(), json=request.model_dump(exclude_none=True))
         data = self._handle(resp)
         return ScreenshotCreateResponse.model_validate(data)
+
+    def get_screenshot(self, job_id: str) -> ScreenshotGetResponse:
+        url = f"{self._base_url}/screenshots"
+        resp = self._client.get(url, headers=self._headers(), params={"job_id": job_id})
+        data = self._handle(resp)
+        return ScreenshotGetResponse.model_validate(data)
 
     # ------------- Watch -------------
     def watch_create(self, request: WatchCreateRequest) -> WatchCreateResponse:

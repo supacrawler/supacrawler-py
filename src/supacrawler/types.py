@@ -152,6 +152,13 @@ class ScreenshotCreateResponse(BaseModel):
     screenshot: Optional[str] = None
     metadata: Optional[ScreenshotMetadata] = None
 
+class ScreenshotGetResponse(BaseModel):
+    success: bool
+    job_id: str
+    url: str
+    screenshot: str
+    metadata: Optional[ScreenshotMetadata] = None
+
 # ------------ Watch ------------
 
 Frequency = Literal["hourly", "daily", "weekly", "monthly", "custom"]

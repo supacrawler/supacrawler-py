@@ -52,7 +52,7 @@ print(watch.watch_id)
 ```
 
 ### Advanced
-- See `examples/*.ipynb` for full parameter coverage:
+- See [`examples/*.ipynb`](https://github.com/Supacrawler/supacrawler-py/tree/main/examples) for full parameter coverage:
   - Scrape: format, render_js, wait, device, depth, max_links, fresh
   - Jobs: format, link_limit, depth, include_subdomains, render_js, patterns
   - Screenshots: device/full_page/format/quality/viewport/device_scale, waits, selectors, blocking, modes
