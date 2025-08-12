@@ -44,7 +44,11 @@ print(status.status)
 
 # Screenshot job
 sjob = client.create_screenshot_job(ScreenshotRequest(url="https://example.com", device="desktop", full_page=True))
-print(sjob.job_id)
+print("job:", sjob.job_id)
+
+# Wait and fetch a fresh signed URL (recommended)
+signed = client.wait_for_screenshot(sjob.job_id)
+print("screenshot:", signed.screenshot)
 
 # Watch
 watch = client.watch_create(WatchCreateRequest(url="https://example.com/pricing", frequency="daily", notify_email="me@example.com"))

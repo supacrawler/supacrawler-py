@@ -102,6 +102,17 @@ class SupacrawlerClient:
         data = self._handle(resp)
         return ScreenshotGetResponse.model_validate(data)
 
+    def wait_for_screenshot(self, job_id: str, interval_seconds: float = 3.0, timeout_seconds: float = 300.0) -> ScreenshotGetResponse:
+        """Wait until the screenshot job completes and return a fresh signed URL.
+
+        This polls job status until it is completed, then calls GET /v1/screenshots
+        to obtain a renewed 15-minute signed URL.
+        """
+        final = self.wait_for_job(job_id, interval_seconds=interval_seconds, timeout_seconds=timeout_seconds)
+        if final.status != "completed":
+            raise SupacrawlerError(f"Job {job_id} did not complete; status={final.status}")
+        return self.get_screenshot(job_id)
+
     # ------------- Watch -------------
     def watch_create(self, request: WatchCreateRequest) -> WatchCreateResponse:
         url = f"{self._base_url}/watch"
