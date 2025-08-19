@@ -64,7 +64,7 @@ print(watch.watch_id)
 
 ## API coverage
 - GET `/v1/scrape` (all params)
-- POST `/v1/jobs`, GET `/v1/jobs/{id}`
+- POST `/v1/crawl`, GET `/v1/crawl/{id}`
 - POST `/v1/screenshots`
 - POST `/v1/watch`, GET `/v1/watch`, GET `/v1/watch/{id}`, DELETE `/v1/watch/{id}`, PATCH `/v1/watch/{id}/pause`, PATCH `/v1/watch/{id}/resume`, POST `/v1/watch/{id}/check`
 
