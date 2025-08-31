@@ -18,6 +18,7 @@ def _get_kwargs(
     depth: Union[Unset, int] = UNSET,
     max_links: Union[Unset, int] = UNSET,
     render_js: Union[Unset, bool] = UNSET,
+    include_html: Union[Unset, bool] = UNSET,
     fresh: Union[Unset, bool] = UNSET,
 ) -> dict[str, Any]:
     params: dict[str, Any] = {}
@@ -35,6 +36,8 @@ def _get_kwargs(
     params["max_links"] = max_links
 
     params["render_js"] = render_js
+
+    params["include_html"] = include_html
 
     params["fresh"] = fresh
 
@@ -60,6 +63,26 @@ def _parse_response(
         response_400 = Error.from_dict(response.json())
 
         return response_400
+    if response.status_code == 403:
+        response_403 = Error.from_dict(response.json())
+
+        return response_403
+    if response.status_code == 404:
+        response_404 = Error.from_dict(response.json())
+
+        return response_404
+    if response.status_code == 408:
+        response_408 = Error.from_dict(response.json())
+
+        return response_408
+    if response.status_code == 422:
+        response_422 = Error.from_dict(response.json())
+
+        return response_422
+    if response.status_code == 429:
+        response_429 = Error.from_dict(response.json())
+
+        return response_429
     if response.status_code == 500:
         response_500 = Error.from_dict(response.json())
 
@@ -89,6 +112,7 @@ def sync_detailed(
     depth: Union[Unset, int] = UNSET,
     max_links: Union[Unset, int] = UNSET,
     render_js: Union[Unset, bool] = UNSET,
+    include_html: Union[Unset, bool] = UNSET,
     fresh: Union[Unset, bool] = UNSET,
 ) -> Response[Union[Error, ScrapeResponse]]:
     """Scrape a single URL
@@ -99,6 +123,7 @@ def sync_detailed(
         depth (Union[Unset, int]):
         max_links (Union[Unset, int]):
         render_js (Union[Unset, bool]):
+        include_html (Union[Unset, bool]):
         fresh (Union[Unset, bool]):
 
     Raises:
@@ -115,6 +140,7 @@ def sync_detailed(
         depth=depth,
         max_links=max_links,
         render_js=render_js,
+        include_html=include_html,
         fresh=fresh,
     )
 
@@ -133,6 +159,7 @@ def sync(
     depth: Union[Unset, int] = UNSET,
     max_links: Union[Unset, int] = UNSET,
     render_js: Union[Unset, bool] = UNSET,
+    include_html: Union[Unset, bool] = UNSET,
     fresh: Union[Unset, bool] = UNSET,
 ) -> Optional[Union[Error, ScrapeResponse]]:
     """Scrape a single URL
@@ -143,6 +170,7 @@ def sync(
         depth (Union[Unset, int]):
         max_links (Union[Unset, int]):
         render_js (Union[Unset, bool]):
+        include_html (Union[Unset, bool]):
         fresh (Union[Unset, bool]):
 
     Raises:
@@ -160,6 +188,7 @@ def sync(
         depth=depth,
         max_links=max_links,
         render_js=render_js,
+        include_html=include_html,
         fresh=fresh,
     ).parsed
 
@@ -172,6 +201,7 @@ async def asyncio_detailed(
     depth: Union[Unset, int] = UNSET,
     max_links: Union[Unset, int] = UNSET,
     render_js: Union[Unset, bool] = UNSET,
+    include_html: Union[Unset, bool] = UNSET,
     fresh: Union[Unset, bool] = UNSET,
 ) -> Response[Union[Error, ScrapeResponse]]:
     """Scrape a single URL
@@ -182,6 +212,7 @@ async def asyncio_detailed(
         depth (Union[Unset, int]):
         max_links (Union[Unset, int]):
         render_js (Union[Unset, bool]):
+        include_html (Union[Unset, bool]):
         fresh (Union[Unset, bool]):
 
     Raises:
@@ -198,6 +229,7 @@ async def asyncio_detailed(
         depth=depth,
         max_links=max_links,
         render_js=render_js,
+        include_html=include_html,
         fresh=fresh,
     )
 
@@ -214,6 +246,7 @@ async def asyncio(
     depth: Union[Unset, int] = UNSET,
     max_links: Union[Unset, int] = UNSET,
     render_js: Union[Unset, bool] = UNSET,
+    include_html: Union[Unset, bool] = UNSET,
     fresh: Union[Unset, bool] = UNSET,
 ) -> Optional[Union[Error, ScrapeResponse]]:
     """Scrape a single URL
@@ -224,6 +257,7 @@ async def asyncio(
         depth (Union[Unset, int]):
         max_links (Union[Unset, int]):
         render_js (Union[Unset, bool]):
+        include_html (Union[Unset, bool]):
         fresh (Union[Unset, bool]):
 
     Raises:
@@ -242,6 +276,7 @@ async def asyncio(
             depth=depth,
             max_links=max_links,
             render_js=render_js,
+            include_html=include_html,
             fresh=fresh,
         )
     ).parsed

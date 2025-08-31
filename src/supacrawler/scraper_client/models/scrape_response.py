@@ -21,7 +21,8 @@ class ScrapeResponse:
         url (str):
         metadata (ScrapeMetadata):
         title (Union[Unset, str]):
-        content (Union[Unset, str]): Markdown or HTML depending on format
+        content (Union[Unset, str]): Markdown content or links depending on format
+        html (Union[Unset, str]): HTML content (only if include_html=true)
         links (Union[Unset, list[str]]):
         discovered (Union[Unset, int]):
     """
@@ -31,6 +32,7 @@ class ScrapeResponse:
     metadata: "ScrapeMetadata"
     title: Union[Unset, str] = UNSET
     content: Union[Unset, str] = UNSET
+    html: Union[Unset, str] = UNSET
     links: Union[Unset, list[str]] = UNSET
     discovered: Union[Unset, int] = UNSET
     additional_properties: dict[str, Any] = _attrs_field(init=False, factory=dict)
@@ -45,6 +47,8 @@ class ScrapeResponse:
         title = self.title
 
         content = self.content
+
+        html = self.html
 
         links: Union[Unset, list[str]] = UNSET
         if not isinstance(self.links, Unset):
@@ -65,6 +69,8 @@ class ScrapeResponse:
             field_dict["title"] = title
         if content is not UNSET:
             field_dict["content"] = content
+        if html is not UNSET:
+            field_dict["html"] = html
         if links is not UNSET:
             field_dict["links"] = links
         if discovered is not UNSET:
@@ -87,6 +93,8 @@ class ScrapeResponse:
 
         content = d.pop("content", UNSET)
 
+        html = d.pop("html", UNSET)
+
         links = cast(list[str], d.pop("links", UNSET))
 
         discovered = d.pop("discovered", UNSET)
@@ -97,6 +105,7 @@ class ScrapeResponse:
             metadata=metadata,
             title=title,
             content=content,
+            html=html,
             links=links,
             discovered=discovered,
         )

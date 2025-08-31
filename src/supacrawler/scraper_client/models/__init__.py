@@ -16,7 +16,12 @@ from .page_metadata import PageMetadata
 from .scrape_metadata import ScrapeMetadata
 from .scrape_response import ScrapeResponse
 from .screenshot_create_request import ScreenshotCreateRequest
+from .screenshot_create_request_block_resources_item import ScreenshotCreateRequestBlockResourcesItem
+from .screenshot_create_request_cookies_item import ScreenshotCreateRequestCookiesItem
+from .screenshot_create_request_device import ScreenshotCreateRequestDevice
 from .screenshot_create_request_format import ScreenshotCreateRequestFormat
+from .screenshot_create_request_headers import ScreenshotCreateRequestHeaders
+from .screenshot_create_request_wait_until import ScreenshotCreateRequestWaitUntil
 from .screenshot_get_response import ScreenshotGetResponse
 from .screenshot_get_response_status import ScreenshotGetResponseStatus
 from .screenshot_job_response import ScreenshotJobResponse
@@ -41,7 +46,12 @@ __all__ = (
     "ScrapeMetadata",
     "ScrapeResponse",
     "ScreenshotCreateRequest",
+    "ScreenshotCreateRequestBlockResourcesItem",
+    "ScreenshotCreateRequestCookiesItem",
+    "ScreenshotCreateRequestDevice",
     "ScreenshotCreateRequestFormat",
+    "ScreenshotCreateRequestHeaders",
+    "ScreenshotCreateRequestWaitUntil",
     "ScreenshotGetResponse",
     "ScreenshotGetResponseStatus",
     "ScreenshotJobResponse",

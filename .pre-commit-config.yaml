@@ -1,0 +1,68 @@
+# Pre-commit hooks for Supacrawler Python SDK
+# See https://pre-commit.com for more information
+
+repos:
+# Basic file checks
+- repo: https://github.com/pre-commit/pre-commit-hooks
+  rev: v4.6.0
+  hooks:
+  - id: check-yaml
+    files: \.(yaml|yml)$
+  - id: check-json
+    files: \.json$
+  - id: check-toml
+    files: \.toml$
+  - id: end-of-file-fixer
+  - id: trailing-whitespace
+  - id: check-merge-conflict
+
+# Python formatting and linting
+- repo: https://github.com/psf/black
+  rev: 24.8.0
+  hooks:
+  - id: black
+    language_version: python3
+
+- repo: https://github.com/pycqa/isort
+  rev: 5.13.2
+  hooks:
+  - id: isort
+    args: ["--profile", "black"]
+
+# Supacrawler comprehensive tests
+- repo: local
+  hooks:
+  - id: supacrawler-tests
+    name: Supacrawler Comprehensive Tests
+    entry: python run_tests.py
+    language: system
+    files: ^(src/|test/).*\.py$
+    pass_filenames: false
+    description: Run comprehensive tests for all Supacrawler endpoints
+
+# Individual test suites (optional, can be enabled for specific testing)
+- repo: local
+  hooks:
+  - id: supacrawler-scrape-tests
+    name: Supacrawler Scrape Tests
+    entry: python -m pytest test/test_scrape.py -v
+    language: system
+    files: ^(src/supacrawler/|test/test_scrape\.py).*\.py$
+    pass_filenames: false
+    stages: [manual]  # Only run manually with --hook-stage manual
+
+  - id: supacrawler-crawl-tests
+    name: Supacrawler Crawl Tests
+    entry: python -m pytest test/test_crawl.py -v
+    language: system
+    files: ^(src/supacrawler/|test/test_crawl\.py).*\.py$
+    pass_filenames: false
+    stages: [manual]
+
+  - id: supacrawler-screenshot-tests
+    name: Supacrawler Screenshot Tests
+    entry: python -m pytest test/test_screenshot.py -v
+    language: system
+    files: ^(src/supacrawler/|test/test_screenshot\.py).*\.py$
+    pass_filenames: false
+    stages: [manual]

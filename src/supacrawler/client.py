@@ -5,36 +5,38 @@ from typing import Any, Dict, Optional, Union
 
 import httpx
 
-from .types import (
-    WatchCreateRequest,
-    WatchCreateResponse,
-    WatchGetResponse,
-    WatchListResponse,
-    WatchDeleteResponse,
-)
-
-# Generated engine client (created by Makefile gen-openapi under supacrawler_scraper_engine_api_client)
-from .scraper_client.client import Client as EngineClient
-from .scraper_client.models import (
-    ScreenshotCreateRequest,
-    CrawlCreateRequest,
-    CrawlCreateRequestFormat,
-    CrawlCreateResponse,
-    CrawlStatusResponse,
-)
-from .scraper_client.models import GetV1ScrapeFormat
+from .scraper_client.api.jobs.get_v_1_crawl_job_id import sync as crawl_get_sync
+from .scraper_client.api.jobs.post_v1_crawl import sync as crawl_create_sync
 from .scraper_client.api.scrape.get_v1_scrape import (
     sync as scrape_sync,
 )
-from .scraper_client.api.screenshots.post_v1_screenshots import sync as screenshots_create_sync
 from .scraper_client.api.screenshots.get_v1_screenshots import sync as screenshots_get_sync
-from .scraper_client.api.jobs.post_v1_crawl import sync as crawl_create_sync
-from .scraper_client.api.jobs.get_v_1_crawl_job_id import sync as crawl_get_sync
+from .scraper_client.api.screenshots.post_v1_screenshots import sync as screenshots_create_sync
+
+# Generated engine client (created by Makefile gen-openapi under supacrawler_scraper_engine_api_client)
+from .scraper_client.client import Client as EngineClient
 from .scraper_client.errors import UnexpectedStatus
+from .scraper_client.models import (
+    CrawlCreateRequest,
+    CrawlCreateRequestFormat,
+    CrawlCreateResponse,
+    GetV1ScrapeFormat,
+    ScreenshotCreateRequest,
+)
+from .types import (
+    CrawlJob,
+    ScreenshotJob,
+    WatchCreateRequest,
+    WatchCreateResponse,
+    WatchDeleteResponse,
+    WatchGetResponse,
+    WatchListResponse,
+)
 
 
 class SupacrawlerError(Exception):
     """Base exception for Supacrawler API errors"""
+
     def __init__(self, message: str, status_code: Optional[int] = None, error_type: Optional[str] = None):
         super().__init__(message)
         self.status_code = status_code
@@ -43,36 +45,43 @@ class SupacrawlerError(Exception):
 
 class SupacrawlerBadRequestError(SupacrawlerError):
     """HTTP 400 - Bad Request"""
+
     pass
 
 
 class SupacrawlerForbiddenError(SupacrawlerError):
     """HTTP 403 - Forbidden (e.g., robots.txt disallowed)"""
+
     pass
 
 
 class SupacrawlerNotFoundError(SupacrawlerError):
     """HTTP 404 - Not Found"""
+
     pass
 
 
 class SupacrawlerTimeoutError(SupacrawlerError):
     """HTTP 408 - Request Timeout"""
+
     pass
 
 
 class SupacrawlerUnprocessableError(SupacrawlerError):
     """HTTP 422 - Unprocessable Entity (content filtered)"""
+
     pass
 
 
 class SupacrawlerRateLimitError(SupacrawlerError):
     """HTTP 429 - Too Many Requests"""
+
     pass
 
 
 class SupacrawlerServerError(SupacrawlerError):
     """HTTP 5xx - Server Error"""
+
     pass
 
 
@@ -114,7 +123,7 @@ class SupacrawlerClient:
             except Exception:
                 error_msg = resp.text
                 payload = {"error": error_msg}
-            
+
             # Map status codes to specific exception types
             if resp.status_code == 400:
                 raise SupacrawlerBadRequestError(error_msg, resp.status_code, "bad_request")
@@ -138,8 +147,8 @@ class SupacrawlerClient:
     def scrape(self, url: str, **kwargs):
         """Scrape a single URL (engine /v1/scrape)
 
-        Accepts kwargs: format (str or GetV1ScrapeFormat), depth, max_links, render_js, fresh
-        
+        Accepts kwargs: format (str or GetV1ScrapeFormat), depth, max_links, render_js, include_html, fresh
+
         Raises:
             SupacrawlerBadRequestError: Invalid URL or parameters (HTTP 400)
             SupacrawlerForbiddenError: Robots.txt disallowed (HTTP 403)
@@ -155,10 +164,16 @@ class SupacrawlerClient:
             format_ = fmt
         elif isinstance(fmt, str):
             fmt_norm = fmt.strip().lower()
-            if fmt_norm in ("markdown", "html", "text", "links"):
+            if fmt_norm in ("markdown", "links"):
                 format_ = GetV1ScrapeFormat(fmt_norm)
-        
+
         try:
+            # Handle format properly - use UNSET if not provided
+            from .scraper_client.types import UNSET
+
+            if format_ is None:
+                format_ = UNSET
+
             # Pass url as url_query to generated client
             resp = scrape_sync(
                 client=self._engine,
@@ -167,22 +182,82 @@ class SupacrawlerClient:
                 depth=kwargs.get("depth"),
                 max_links=kwargs.get("max_links"),
                 render_js=kwargs.get("render_js"),
+                include_html=kwargs.get("include_html"),
                 fresh=kwargs.get("fresh"),
             )
             if resp is None or isinstance(resp, dict) and resp.get("error"):
                 raise SupacrawlerError(f"Scrape failed for {url}")
+
+            # Convert to friendly Page object
+            from .scraper_client.types import UNSET
+            from .types import Page, PageMetadata
+
+            if hasattr(resp, "content"):
+                # Extract metadata if available
+                page_metadata = None
+                raw_metadata = getattr(resp, "metadata", None)
+                if raw_metadata is not None:
+                    metadata_dict = {}
+                    # Handle scrape metadata structure
+                    for field in ["title", "status_code", "description", "language"]:
+                        value = getattr(raw_metadata, field, None)
+                        if value is not None and value is not UNSET:
+                            metadata_dict[field] = value
+                    # Add title from top-level if not in metadata
+                    if "title" not in metadata_dict:
+                        title = getattr(resp, "title", None)
+                        if title is not None and title is not UNSET:
+                            metadata_dict["title"] = title
+                    if metadata_dict:
+                        page_metadata = PageMetadata(**metadata_dict)
+
+                # Handle different response formats
+                markdown_content = None
+                links_data = getattr(resp, "links", None)
+                
+                # Check what format was requested
+                if format_ and str(format_).lower() == "links":
+                    # For links format, extract links array directly
+                    if links_data and links_data is not UNSET:
+                        if isinstance(links_data, list):
+                            links_list = links_data
+                        else:
+                            links_list = None
+                    else:
+                        links_list = None
+                    markdown_content = None  # No markdown for links format
+                else:
+                    # For markdown/text format, extract from content field
+                    markdown_content = getattr(resp, "content", "")
+                    if markdown_content is UNSET:
+                        markdown_content = ""
+                    links_list = None  # No links for markdown format
+                
+                # Get HTML content if include_html was requested
+                html_content = getattr(resp, "html", None)
+                if html_content is UNSET:
+                    html_content = None
+
+                return Page(
+                    markdown=markdown_content,
+                    html=html_content,
+                    links=links_list,
+                    metadata=page_metadata,
+                )
+
             return resp
         except UnexpectedStatus as e:
             # Convert UnexpectedStatus to our specific error types
-            error_msg = e.content.decode('utf-8', errors='ignore')
+            error_msg = e.content.decode("utf-8", errors="ignore")
             try:
                 import json
+
                 error_data = json.loads(error_msg)
                 if isinstance(error_data, dict) and "error" in error_data:
                     error_msg = error_data["error"]
             except (json.JSONDecodeError, TypeError):
                 pass
-            
+
             # Map status codes to specific exception types
             if e.status_code == 400:
                 raise SupacrawlerBadRequestError(error_msg, e.status_code, "bad_request") from e
@@ -202,7 +277,9 @@ class SupacrawlerClient:
                 raise SupacrawlerError(f"Scrape failed for {url}: {error_msg}", e.status_code) from e
 
     # ------------- Crawl (via engine client) -------------
-    def create_crawl_job(self, request: Optional[Union[CrawlCreateRequest, Dict[str, Any]]] = None, **kwargs) -> CrawlCreateResponse:
+    def create_crawl_job(
+        self, request: Optional[Union[CrawlCreateRequest, Dict[str, Any]]] = None, **kwargs
+    ) -> CrawlCreateResponse:
         """Create a crawl job (engine /v1/crawl)
 
         Usage:
@@ -226,9 +303,16 @@ class SupacrawlerClient:
                     if fmt_norm in ("markdown", "html"):
                         req_dict["format_"] = CrawlCreateRequestFormat(fmt_norm)
             # Build model from normalized dict
+            from .scraper_client.types import UNSET
+
+            # Handle format properly - use UNSET if not provided
+            format_val = req_dict.get("format_")
+            if format_val is None:
+                format_val = UNSET
+
             model = CrawlCreateRequest(
                 url=req_dict["url"],
-                format_=req_dict.get("format_"),
+                format_=format_val,
                 depth=req_dict.get("depth"),
                 link_limit=req_dict.get("link_limit"),
                 include_subdomains=req_dict.get("include_subdomains"),
@@ -236,45 +320,70 @@ class SupacrawlerClient:
                 include_html=req_dict.get("include_html"),
             )
             r = crawl_create_sync(client=self._engine, body=model)
-            if r is None or (hasattr(r, "success") and getattr(r, "success") is False):
-                raise SupacrawlerError("Failed to create crawl job")
+            if r is None:
+                raise SupacrawlerError("No response from server - check if scraper engine is running")
+            
+            # Handle Error responses (400, 429, etc.)
+            if hasattr(r, "error") and hasattr(r, "success"):
+                error_msg = getattr(r, "error", "Unknown error")
+                raise SupacrawlerError(f"Crawl job creation failed: {error_msg}")
+            
+            # Handle successful CrawlCreateResponse
+            if hasattr(r, "success") and getattr(r, "success") is False:
+                error_msg = getattr(r, "error", "Failed to create crawl job")
+                raise SupacrawlerError(f"Crawl job creation failed: {error_msg}")
             return r
 
         if isinstance(request, CrawlCreateRequest):
             r = crawl_create_sync(client=self._engine, body=request)
-            if r is None or (hasattr(r, "success") and getattr(r, "success") is False):
-                raise SupacrawlerError("Failed to create crawl job")
+            if r is None:
+                raise SupacrawlerError("No response from server - check if scraper engine is running")
+            
+            # Handle Error responses (400, 429, etc.)
+            if hasattr(r, "error") and hasattr(r, "success"):
+                error_msg = getattr(r, "error", "Unknown error")
+                raise SupacrawlerError(f"Crawl job creation failed: {error_msg}")
+            
+            # Handle successful CrawlCreateResponse
+            if hasattr(r, "success") and getattr(r, "success") is False:
+                error_msg = getattr(r, "error", "Failed to create crawl job")
+                raise SupacrawlerError(f"Crawl job creation failed: {error_msg}")
             return r
 
         raise SupacrawlerError("create_crawl_job requires either kwargs, dict, or CrawlCreateRequest model")
 
-    def get_crawl(self, job_id: str) -> CrawlStatusResponse:
-        return crawl_get_sync(client=self._engine, job_id=job_id)
+    def get_crawl(self, job_id: str) -> CrawlJob:
+        resp = crawl_get_sync(client=self._engine, job_id=job_id)
+        return CrawlJob.from_engine(resp)
 
-    def wait_for_crawl(self, job_id: str, interval_seconds: float = 3.0, timeout_seconds: float = 600.0) -> CrawlStatusResponse:
+    def wait_for_crawl(self, job_id: str, interval_seconds: float = 3.0, timeout_seconds: float = 600.0) -> CrawlJob:
         start = time.time()
         while True:
-            resp = self.get_crawl(job_id)
-            status = str(resp.status).lower() if getattr(resp, "status", None) is not None else None
+            job: CrawlJob = self.get_crawl(job_id)
+            status = (job.status or "").lower()
             if status in ("completed", "failed"):
-                return resp
+                return job
             if time.time() - start > timeout_seconds:
                 raise SupacrawlerError(f"Timeout waiting for crawl {job_id}")
             time.sleep(interval_seconds)
 
     # ------------- Screenshots (via engine client) -------------
-    def create_screenshot_job(self, request: ScreenshotCreateRequest):
-        return screenshots_create_sync(client=self._engine, json_body=request)
+    def create_screenshot_job(self, request: ScreenshotCreateRequest) -> ScreenshotJob:
+        resp = screenshots_create_sync(client=self._engine, body=request)
+        return ScreenshotJob.from_engine(resp)
 
-    def get_screenshot(self, job_id: str):
-        return screenshots_get_sync(client=self._engine, job_id=job_id)
+    def get_screenshot(self, job_id: str) -> ScreenshotJob:
+        resp = screenshots_get_sync(client=self._engine, job_id=job_id)
+        return ScreenshotJob.from_engine(resp)
 
-    def wait_for_screenshot(self, job_id: str, interval_seconds: float = 3.0, timeout_seconds: float = 300.0):
+    def wait_for_screenshot(
+        self, job_id: str, interval_seconds: float = 3.0, timeout_seconds: float = 300.0
+    ) -> ScreenshotJob:
         start = time.time()
         while True:
             resp = self.get_screenshot(job_id)
-            status = getattr(resp, "status", None)
-            if status and str(status).lower() == "completed":
+            status = resp.status or ""
+            if status.lower() == "completed":
                 return resp
             if time.time() - start > timeout_seconds:
                 raise SupacrawlerError(f"Timeout waiting for screenshot {job_id}")

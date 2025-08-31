@@ -37,6 +37,7 @@ htmlcov/
 
 # Jupyter
 .ipynb_checkpoints/
+drafts/
 
 # OS
 .DS_Store
