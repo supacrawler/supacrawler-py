@@ -188,62 +188,72 @@ class SupacrawlerClient:
             if resp is None or isinstance(resp, dict) and resp.get("error"):
                 raise SupacrawlerError(f"Scrape failed for {url}")
 
-            # Convert to friendly Page object
+            # Convert to user-friendly Page object for backward compatibility
+            from .types import Page
+            return Page.from_scrape_response(resp)
+        except UnexpectedStatus as e:
+            # Convert UnexpectedStatus to our specific error types
+            error_msg = e.content.decode("utf-8", errors="ignore")
+            try:
+                import json
+
+                error_data = json.loads(error_msg)
+                if isinstance(error_data, dict) and "error" in error_data:
+                    error_msg = error_data["error"]
+            except (json.JSONDecodeError, TypeError):
+                pass
+
+            # Map status codes to specific exception types
+            if e.status_code == 400:
+                raise SupacrawlerBadRequestError(error_msg, e.status_code, "bad_request") from e
+            elif e.status_code == 403:
+                raise SupacrawlerForbiddenError(error_msg, e.status_code, "forbidden") from e
+            elif e.status_code == 404:
+                raise SupacrawlerNotFoundError(error_msg, e.status_code, "not_found") from e
+            elif e.status_code == 408:
+                raise SupacrawlerTimeoutError(error_msg, e.status_code, "timeout") from e
+            elif e.status_code == 422:
+                raise SupacrawlerUnprocessableError(error_msg, e.status_code, "unprocessable") from e
+            elif e.status_code == 429:
+                raise SupacrawlerRateLimitError(error_msg, e.status_code, "rate_limit") from e
+            elif e.status_code >= 500:
+                raise SupacrawlerServerError(error_msg, e.status_code, "server_error") from e
+            else:
+                raise SupacrawlerError(f"Scrape failed for {url}: {error_msg}", e.status_code) from e
+
+    def scrape_raw(self, url: str, **kwargs):
+        """Scrape a single URL and return the raw ScrapeResponse (generated model)
+        
+        This returns the raw OpenAPI generated model with all fields.
+        For a user-friendly interface, use scrape() instead.
+        """
+        fmt = kwargs.pop("format", None)
+        format_: Optional[GetV1ScrapeFormat] = None
+        if isinstance(fmt, GetV1ScrapeFormat):
+            format_ = fmt
+        elif isinstance(fmt, str):
+            fmt_norm = fmt.strip().lower()
+            if fmt_norm in ("markdown", "links"):
+                format_ = GetV1ScrapeFormat(fmt_norm)
+
+        try:
             from .scraper_client.types import UNSET
-            from .types import Page, PageMetadata
 
-            if hasattr(resp, "content"):
-                # Extract metadata if available
-                page_metadata = None
-                raw_metadata = getattr(resp, "metadata", None)
-                if raw_metadata is not None:
-                    metadata_dict = {}
-                    # Handle scrape metadata structure
-                    for field in ["title", "status_code", "description", "language"]:
-                        value = getattr(raw_metadata, field, None)
-                        if value is not None and value is not UNSET:
-                            metadata_dict[field] = value
-                    # Add title from top-level if not in metadata
-                    if "title" not in metadata_dict:
-                        title = getattr(resp, "title", None)
-                        if title is not None and title is not UNSET:
-                            metadata_dict["title"] = title
-                    if metadata_dict:
-                        page_metadata = PageMetadata(**metadata_dict)
+            if format_ is None:
+                format_ = UNSET
 
-                # Handle different response formats
-                markdown_content = None
-                links_data = getattr(resp, "links", None)
-                
-                # Check what format was requested
-                if format_ and str(format_).lower() == "links":
-                    # For links format, extract links array directly
-                    if links_data and links_data is not UNSET:
-                        if isinstance(links_data, list):
-                            links_list = links_data
-                        else:
-                            links_list = None
-                    else:
-                        links_list = None
-                    markdown_content = None  # No markdown for links format
-                else:
-                    # For markdown/text format, extract from content field
-                    markdown_content = getattr(resp, "content", "")
-                    if markdown_content is UNSET:
-                        markdown_content = ""
-                    links_list = None  # No links for markdown format
-                
-                # Get HTML content if include_html was requested
-                html_content = getattr(resp, "html", None)
-                if html_content is UNSET:
-                    html_content = None
-
-                return Page(
-                    markdown=markdown_content,
-                    html=html_content,
-                    links=links_list,
-                    metadata=page_metadata,
-                )
+            resp = scrape_sync(
+                client=self._engine,
+                url_query=url,
+                format_=format_,
+                depth=kwargs.get("depth"),
+                max_links=kwargs.get("max_links"),
+                render_js=kwargs.get("render_js"),
+                include_html=kwargs.get("include_html"),
+                fresh=kwargs.get("fresh"),
+            )
+            if resp is None or isinstance(resp, dict) and resp.get("error"):
+                raise SupacrawlerError(f"Scrape failed for {url}")
 
             return resp
         except UnexpectedStatus as e:
@@ -332,7 +342,10 @@ class SupacrawlerClient:
             if hasattr(r, "success") and getattr(r, "success") is False:
                 error_msg = getattr(r, "error", "Failed to create crawl job")
                 raise SupacrawlerError(f"Crawl job creation failed: {error_msg}")
-            return r
+            
+            # Wrap the response to add to_json method
+            from .types import ResponseWrapper
+            return ResponseWrapper(r)
 
         if isinstance(request, CrawlCreateRequest):
             r = crawl_create_sync(client=self._engine, body=request)
@@ -348,7 +361,10 @@ class SupacrawlerClient:
             if hasattr(r, "success") and getattr(r, "success") is False:
                 error_msg = getattr(r, "error", "Failed to create crawl job")
                 raise SupacrawlerError(f"Crawl job creation failed: {error_msg}")
-            return r
+            
+            # Wrap the response to add to_json method
+            from .types import ResponseWrapper
+            return ResponseWrapper(r)
 
         raise SupacrawlerError("create_crawl_job requires either kwargs, dict, or CrawlCreateRequest model")
 

@@ -44,7 +44,9 @@ def test_scrape_comprehensive(client, endpoint_name):
     # Test 3: Links format
     print("3. Testing links format...")
     try:
-        result = client.scrape(test_url, format='links')
+        # Use a URL that actually has links for proper testing
+        links_url = "https://httpbin.org/links/3"
+        result = client.scrape(links_url, format='links')
         assert result.markdown is not None, "Links should return content in markdown field"
         links = result.markdown.split('\n') if result.markdown else []
         print(f"   ✅ Links: Found {len(links)} links")

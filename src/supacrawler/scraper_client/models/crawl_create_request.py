@@ -21,6 +21,7 @@ class CrawlCreateRequest:
         include_subdomains (Union[Unset, bool]):
         render_js (Union[Unset, bool]):
         include_html (Union[Unset, bool]):
+        fresh (Union[Unset, bool]): Bypass cache and fetch fresh content
     """
 
     url: str
@@ -30,6 +31,7 @@ class CrawlCreateRequest:
     include_subdomains: Union[Unset, bool] = UNSET
     render_js: Union[Unset, bool] = UNSET
     include_html: Union[Unset, bool] = UNSET
+    fresh: Union[Unset, bool] = UNSET
     additional_properties: dict[str, Any] = _attrs_field(init=False, factory=dict)
 
     def to_dict(self) -> dict[str, Any]:
@@ -48,6 +50,8 @@ class CrawlCreateRequest:
         render_js = self.render_js
 
         include_html = self.include_html
+
+        fresh = self.fresh
 
         field_dict: dict[str, Any] = {}
         field_dict.update(self.additional_properties)
@@ -68,6 +72,8 @@ class CrawlCreateRequest:
             field_dict["render_js"] = render_js
         if include_html is not UNSET:
             field_dict["include_html"] = include_html
+        if fresh is not UNSET:
+            field_dict["fresh"] = fresh
 
         return field_dict
 
@@ -93,6 +99,8 @@ class CrawlCreateRequest:
 
         include_html = d.pop("include_html", UNSET)
 
+        fresh = d.pop("fresh", UNSET)
+
         crawl_create_request = cls(
             url=url,
             format_=format_,
@@ -101,6 +109,7 @@ class CrawlCreateRequest:
             include_subdomains=include_subdomains,
             render_js=render_js,
             include_html=include_html,
+            fresh=fresh,
         )
 
         crawl_create_request.additional_properties = d
