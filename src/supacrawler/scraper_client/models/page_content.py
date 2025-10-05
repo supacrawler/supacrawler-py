@@ -1,5 +1,5 @@
 from collections.abc import Mapping
-from typing import TYPE_CHECKING, Any, TypeVar, Union
+from typing import TYPE_CHECKING, Any, TypeVar, Union, cast
 
 from attrs import define as _attrs_define
 from attrs import field as _attrs_field
@@ -18,17 +18,21 @@ class PageContent:
     """
     Attributes:
         markdown (str):
+        links (list[str]): All discovered links on the page
         metadata (PageMetadata):
         html (Union[Unset, str]):
     """
 
     markdown: str
+    links: list[str]
     metadata: "PageMetadata"
     html: Union[Unset, str] = UNSET
     additional_properties: dict[str, Any] = _attrs_field(init=False, factory=dict)
 
     def to_dict(self) -> dict[str, Any]:
         markdown = self.markdown
+
+        links = self.links
 
         metadata = self.metadata.to_dict()
 
@@ -39,6 +43,7 @@ class PageContent:
         field_dict.update(
             {
                 "markdown": markdown,
+                "links": links,
                 "metadata": metadata,
             }
         )
@@ -54,12 +59,15 @@ class PageContent:
         d = dict(src_dict)
         markdown = d.pop("markdown")
 
+        links = cast(list[str], d.pop("links"))
+
         metadata = PageMetadata.from_dict(d.pop("metadata"))
 
         html = d.pop("html", UNSET)
 
         page_content = cls(
             markdown=markdown,
+            links=links,
             metadata=metadata,
             html=html,
         )

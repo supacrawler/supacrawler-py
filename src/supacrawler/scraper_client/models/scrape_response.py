@@ -19,21 +19,21 @@ class ScrapeResponse:
     Attributes:
         success (bool):
         url (str):
+        links (list[str]): All discovered links on the page (always included)
         metadata (ScrapeMetadata):
         title (Union[Unset, str]):
         content (Union[Unset, str]): Markdown content or links depending on format
         html (Union[Unset, str]): HTML content (only if include_html=true)
-        links (Union[Unset, list[str]]):
-        discovered (Union[Unset, int]):
+        discovered (Union[Unset, int]): Number of links discovered
     """
 
     success: bool
     url: str
+    links: list[str]
     metadata: "ScrapeMetadata"
     title: Union[Unset, str] = UNSET
     content: Union[Unset, str] = UNSET
     html: Union[Unset, str] = UNSET
-    links: Union[Unset, list[str]] = UNSET
     discovered: Union[Unset, int] = UNSET
     additional_properties: dict[str, Any] = _attrs_field(init=False, factory=dict)
 
@@ -41,6 +41,8 @@ class ScrapeResponse:
         success = self.success
 
         url = self.url
+
+        links = self.links
 
         metadata = self.metadata.to_dict()
 
@@ -50,10 +52,6 @@ class ScrapeResponse:
 
         html = self.html
 
-        links: Union[Unset, list[str]] = UNSET
-        if not isinstance(self.links, Unset):
-            links = self.links
-
         discovered = self.discovered
 
         field_dict: dict[str, Any] = {}
@@ -62,6 +60,7 @@ class ScrapeResponse:
             {
                 "success": success,
                 "url": url,
+                "links": links,
                 "metadata": metadata,
             }
         )
@@ -71,8 +70,6 @@ class ScrapeResponse:
             field_dict["content"] = content
         if html is not UNSET:
             field_dict["html"] = html
-        if links is not UNSET:
-            field_dict["links"] = links
         if discovered is not UNSET:
             field_dict["discovered"] = discovered
 
@@ -87,6 +84,8 @@ class ScrapeResponse:
 
         url = d.pop("url")
 
+        links = cast(list[str], d.pop("links"))
+
         metadata = ScrapeMetadata.from_dict(d.pop("metadata"))
 
         title = d.pop("title", UNSET)
@@ -95,18 +94,16 @@ class ScrapeResponse:
 
         html = d.pop("html", UNSET)
 
-        links = cast(list[str], d.pop("links", UNSET))
-
         discovered = d.pop("discovered", UNSET)
 
         scrape_response = cls(
             success=success,
             url=url,
+            links=links,
             metadata=metadata,
             title=title,
             content=content,
             html=html,
-            links=links,
             discovered=discovered,
         )
 

@@ -2,6 +2,8 @@
 
 from .crawl_create_request import CrawlCreateRequest
 from .crawl_create_request_format import CrawlCreateRequestFormat
+from .crawl_create_request_proxy_mode import CrawlCreateRequestProxyMode
+from .crawl_create_request_webhook_headers import CrawlCreateRequestWebhookHeaders
 from .crawl_create_response import CrawlCreateResponse
 from .crawl_job_data import CrawlJobData
 from .crawl_job_data_crawl_data import CrawlJobDataCrawlData
@@ -11,6 +13,7 @@ from .crawl_status_response import CrawlStatusResponse
 from .crawl_status_response_status import CrawlStatusResponseStatus
 from .error import Error
 from .get_v1_scrape_format import GetV1ScrapeFormat
+from .get_v1_scrape_proxy_mode import GetV1ScrapeProxyMode
 from .page_content import PageContent
 from .page_metadata import PageMetadata
 from .parse_create_request import ParseCreateRequest
@@ -45,6 +48,8 @@ from .screenshot_metadata import ScreenshotMetadata
 __all__ = (
     "CrawlCreateRequest",
     "CrawlCreateRequestFormat",
+    "CrawlCreateRequestProxyMode",
+    "CrawlCreateRequestWebhookHeaders",
     "CrawlCreateResponse",
     "CrawlJobData",
     "CrawlJobDataCrawlData",
@@ -54,6 +59,7 @@ __all__ = (
     "CrawlStatusResponseStatus",
     "Error",
     "GetV1ScrapeFormat",
+    "GetV1ScrapeProxyMode",
     "PageContent",
     "PageMetadata",
     "ParseCreateRequest",

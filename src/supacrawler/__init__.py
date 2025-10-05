@@ -1,4 +1,14 @@
-from .client import SupacrawlerClient, SupacrawlerError
+from .client import (
+    SupacrawlerClient, 
+    SupacrawlerError,
+    SupacrawlerBadRequestError,
+    SupacrawlerForbiddenError,
+    SupacrawlerNotFoundError,
+    SupacrawlerTimeoutError,
+    SupacrawlerUnprocessableError,
+    SupacrawlerRateLimitError,
+    SupacrawlerServerError,
+)
 from .types import (
     WatchCreateRequest,
     WatchCreateResponse,
@@ -15,11 +25,21 @@ from .scraper_client.models import (
     PageMetadata,
     CrawlCreateRequest,
     CrawlStatusResponse,
+    ParseCreateRequest,
+    ParseResponse,
+    ParseCreateRequestOutputFormat,
 )
 
 __all__ = [
     "SupacrawlerClient",
     "SupacrawlerError",
+    "SupacrawlerBadRequestError",
+    "SupacrawlerForbiddenError", 
+    "SupacrawlerNotFoundError",
+    "SupacrawlerTimeoutError",
+    "SupacrawlerUnprocessableError",
+    "SupacrawlerRateLimitError",
+    "SupacrawlerServerError",
     "WatchCreateRequest",
     "WatchCreateResponse",
     "WatchGetResponse",
@@ -32,4 +52,7 @@ __all__ = [
     "PageMetadata",
     "CrawlCreateRequest",
     "CrawlStatusResponse",
+    "ParseCreateRequest",
+    "ParseResponse",
+    "ParseCreateRequestOutputFormat",
 ]

@@ -591,3 +591,168 @@ class CrawlJob(BaseModel):
             data=wrapped,
             error=error,
         )
+
+
+# ------------ Parse (user-friendly wrapper) ------------
+
+
+class ParseJob(BaseModel):
+    """User-friendly parse job wrapper for job status responses"""
+    success: bool
+    job_id: Optional[str] = None
+    status: Optional[str] = None
+    type: Optional[str] = None
+    results: Optional[Any] = None
+    data: Optional[Any] = None  # Alias for results
+    error: Optional[str] = None
+
+    def to_json(self) -> Dict[str, Any]:
+        """Convert to JSON dict - consistent across all models"""
+        return self.model_dump()
+    
+    @property
+    def is_completed(self) -> bool:
+        """Check if the parse job is completed"""
+        return self.status and self.status.lower() == "completed"
+    
+    @property
+    def is_failed(self) -> bool:
+        """Check if the parse job failed"""
+        return self.status and self.status.lower() == "failed"
+    
+    @property
+    def is_processing(self) -> bool:
+        """Check if the parse job is still processing"""
+        return self.status and self.status.lower() in ("pending", "processing")
+    
+    @property
+    def has_data(self) -> bool:
+        """Check if there's data available"""
+        return self.data is not None or self.results is not None
+    
+    @classmethod
+    def from_api_response(cls, resp_data: Dict[str, Any]) -> "ParseJob":
+        """Create from API response dictionary"""
+        # Extract data from results field if present
+        results = resp_data.get("results")
+        data = results
+        
+        # If results is a dict and has parse-like structure, extract data
+        if isinstance(results, dict):
+            # Handle nested parse result structure
+            if "data" in results:
+                data = results["data"]
+            # Handle direct data in results
+            elif any(key in results for key in ["success", "workflow_status", "pages_processed"]):
+                data = results
+        
+        return cls(
+            success=bool(resp_data.get("success", False)),
+            job_id=resp_data.get("job_id"),
+            status=resp_data.get("status"),
+            type=resp_data.get("type"),
+            results=results,
+            data=data,
+            error=resp_data.get("error"),
+        )
+
+
+class ParseResult(BaseModel):
+    """User-friendly parse result wrapper for ParseResponse"""
+    success: bool
+    data: Optional[Any] = None
+    workflow_status: Optional[str] = None
+    pages_processed: Optional[int] = None
+    total_pages: Optional[int] = None
+    partial_results: Optional[List[Any]] = None
+    execution_time: Optional[int] = None
+    error: Optional[str] = None
+    input_tokens: Optional[int] = None
+    output_tokens: Optional[int] = None
+    total_tokens: Optional[int] = None
+    job_id: Optional[str] = None
+
+    def to_json(self) -> Dict[str, Any]:
+        """Convert to JSON dict - consistent across all models"""
+        return self.model_dump()
+    
+    @property
+    def is_success(self) -> bool:
+        """Check if the parse operation succeeded"""
+        return self.success
+    
+    @property
+    def is_failed(self) -> bool:
+        """Check if the parse operation failed"""
+        return not self.success
+    
+    @property
+    def has_data(self) -> bool:
+        """Check if there's extracted data available"""
+        return self.data is not None
+    
+    @property
+    def token_usage(self) -> Dict[str, Optional[int]]:
+        """Get token usage summary"""
+        return {
+            "input_tokens": self.input_tokens,
+            "output_tokens": self.output_tokens,
+            "total_tokens": self.total_tokens,
+        }
+
+    @classmethod
+    def from_engine(cls, resp) -> "ParseResult":
+        """Create from ParseResponse"""
+        if resp is None:
+            return cls(success=False, error="No response received")
+        
+        from .scraper_client.types import UNSET
+        
+        # Helper function to handle UNSET values
+        def handle_unset(value):
+            return None if value is UNSET else value
+        
+        # Extract workflow status
+        workflow_status_val = getattr(resp, "workflow_status", None)
+        workflow_status = None
+        if workflow_status_val is not None and workflow_status_val is not UNSET:
+            # Handle enum value
+            if hasattr(workflow_status_val, "value"):
+                workflow_status = workflow_status_val.value
+            else:
+                workflow_status = str(workflow_status_val)
+        
+        # Extract partial results
+        partial_results_val = getattr(resp, "partial_results", None)
+        partial_results = None
+        if partial_results_val is not None and partial_results_val is not UNSET:
+            if isinstance(partial_results_val, list):
+                # Convert each partial result item to dict if it has to_dict method
+                partial_results = []
+                for item in partial_results_val:
+                    if hasattr(item, "to_dict"):
+                        partial_results.append(item.to_dict())
+                    else:
+                        partial_results.append(item)
+            else:
+                partial_results = partial_results_val
+        
+        # Extract job_id from additional_properties
+        job_id = None
+        if hasattr(resp, "additional_properties") and isinstance(resp.additional_properties, dict):
+            job_id = resp.additional_properties.get("job_id")
+        
+        return cls(
+            success=bool(getattr(resp, "success", False)),
+            data=handle_unset(getattr(resp, "data", None)),
+            workflow_status=workflow_status,
+            pages_processed=handle_unset(getattr(resp, "pages_processed", None)),
+            total_pages=handle_unset(getattr(resp, "total_pages", None)),
+            partial_results=partial_results,
+            execution_time=handle_unset(getattr(resp, "execution_time", None)),
+            error=handle_unset(getattr(resp, "error", None)),
+            input_tokens=handle_unset(getattr(resp, "input_tokens", None)),
+            output_tokens=handle_unset(getattr(resp, "output_tokens", None)),
+            total_tokens=handle_unset(getattr(resp, "total_tokens", None)),
+            job_id=job_id,
+        )

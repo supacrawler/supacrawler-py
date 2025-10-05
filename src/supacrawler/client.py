@@ -12,6 +12,9 @@ from .scraper_client.api.scrape.get_v1_scrape import (
 )
 from .scraper_client.api.screenshots.get_v1_screenshots import sync as screenshots_get_sync
 from .scraper_client.api.screenshots.post_v1_screenshots import sync as screenshots_create_sync
+from .scraper_client.api.parse.post_v1_parse import sync as parse_sync
+from .scraper_client.api.parse.get_v1_parse_examples import sync as parse_examples_sync
+from .scraper_client.api.parse.get_v1_parse_templates import sync as parse_templates_sync
 
 # Generated engine client (created by Makefile gen-openapi under supacrawler_scraper_engine_api_client)
 from .scraper_client.client import Client as EngineClient
@@ -22,9 +25,14 @@ from .scraper_client.models import (
     CrawlCreateResponse,
     GetV1ScrapeFormat,
     ScreenshotCreateRequest,
+    ParseCreateRequest,
+    ParseCreateRequestOutputFormat,
+    ParseResponse,
 )
 from .types import (
     CrawlJob,
+    ParseJob,
+    ParseResult,
     ScreenshotJob,
     WatchCreateRequest,
     WatchCreateResponse,
@@ -398,8 +406,8 @@ class SupacrawlerClient:
         start = time.time()
         while True:
             resp = self.get_screenshot(job_id)
-            status = resp.status or ""
-            if status.lower() == "completed":
+            status = (resp.status or "").lower()
+            if status in ("completed", "failed"):
                 return resp
             if time.time() - start > timeout_seconds:
                 raise SupacrawlerError(f"Timeout waiting for screenshot {job_id}")
@@ -447,3 +455,257 @@ class SupacrawlerClient:
         resp = self._client.post(url, headers=self._headers())
         data = self._handle(resp)
         return WatchDeleteResponse.model_validate(data)
+
+    # ------------- Parse (via engine client) -------------
+    def parse(self, prompt: str, **kwargs) -> ParseResult:
+        """Parse content using natural language prompts with AI-powered extraction
+        
+        Returns immediately with job_id. Use wait_for_parse() to poll for completion.
+        
+        Args:
+            prompt: Natural language instruction that may include URLs and extraction requirements
+            **kwargs: Additional parameters:
+                - schema: Optional JSON schema for structured output
+                - output_format: Preferred output format ("json", "csv", "markdown", "xml", "yaml")
+                - stream: Enable streaming responses for real-time results (default: False)
+                - max_depth: Maximum crawl depth (1-3, default: 1)
+                - max_pages: Maximum pages to process (1-100, default: 10)
+        
+        Examples:
+            >>> result = client.parse("Extract product info from https://shop.example.com/iphone")
+            >>> # Poll for completion:
+            >>> final_result = client.wait_for_parse(result.job_id)
+        
+        Returns:
+            ParseResult with job_id - use wait_for_parse() to get final results
+        
+        Raises:
+            SupacrawlerBadRequestError: Missing prompt or malformed schema (HTTP 400)
+            SupacrawlerUnprocessableError: AI couldn't understand prompt (HTTP 422)
+            SupacrawlerServerError: LLM provider error or system error (HTTP 500)
+        """
+        # Create the parse job and return immediately with job_id
+        return self.parse_raw_to_result(prompt, **kwargs)
+
+    def parse_raw(self, prompt: str, **kwargs) -> ParseResponse:
+        """Parse content using natural language prompts with AI-powered extraction (raw response)
+        
+        This returns the raw OpenAPI generated ParseResponse model with all fields.
+        For a user-friendly interface, use parse() instead.
+        
+        Args:
+            prompt: Natural language instruction that may include URLs and extraction requirements
+            **kwargs: Additional parameters (same as parse method)
+        """
+        from .scraper_client.types import UNSET
+        
+        # Handle output_format conversion
+        output_format = kwargs.get("output_format")
+        output_format_enum = UNSET
+        if output_format is not None:
+            if isinstance(output_format, ParseCreateRequestOutputFormat):
+                output_format_enum = output_format
+            elif isinstance(output_format, str):
+                try:
+                    output_format_enum = ParseCreateRequestOutputFormat(output_format.lower())
+                except ValueError:
+                    # Default to JSON if invalid format provided
+                    output_format_enum = ParseCreateRequestOutputFormat.JSON
+        
+        # Handle schema conversion
+        schema = kwargs.get("schema")
+        schema_obj = UNSET
+        if schema is not None:
+            from .scraper_client.models.parse_create_request_schema import ParseCreateRequestSchema
+            if isinstance(schema, dict):
+                schema_obj = ParseCreateRequestSchema.from_dict(schema)
+            else:
+                schema_obj = schema
+        
+        # Build request
+        request = ParseCreateRequest(
+            prompt=prompt,
+            schema=schema_obj,
+            output_format=output_format_enum,
+            stream=kwargs.get("stream", UNSET),
+            max_depth=kwargs.get("max_depth", UNSET),
+            max_pages=kwargs.get("max_pages", UNSET),
+        )
+        
+        try:
+            resp = parse_sync(client=self._engine, body=request)
+            if resp is None:
+                raise SupacrawlerError("No response from server - check if scraper engine is running")
+            
+            # Handle Error responses - check if it's actually an Error model, not just has error field
+            if hasattr(resp, "success") and getattr(resp, "success") is False:
+                error_msg = getattr(resp, "error", "Unknown error")
+                # Check if error is not UNSET
+                from .scraper_client.types import UNSET
+                if error_msg is not UNSET:
+                    raise SupacrawlerError(f"Parse failed: {error_msg}")
+            
+            return resp
+            
+        except UnexpectedStatus as e:
+            # Convert UnexpectedStatus to our specific error types
+            error_msg = e.content.decode("utf-8", errors="ignore")
+            try:
+                import json
+                error_data = json.loads(error_msg)
+                if isinstance(error_data, dict) and "error" in error_data:
+                    error_msg = error_data["error"]
+            except (json.JSONDecodeError, TypeError):
+                pass
+
+            # Map status codes to specific exception types
+            if e.status_code == 400:
+                raise SupacrawlerBadRequestError(error_msg, e.status_code, "bad_request") from e
+            elif e.status_code == 422:
+                raise SupacrawlerUnprocessableError(error_msg, e.status_code, "unprocessable") from e
+            elif e.status_code >= 500:
+                raise SupacrawlerServerError(error_msg, e.status_code, "server_error") from e
+            else:
+                raise SupacrawlerError(f"Parse failed: {error_msg}", e.status_code) from e
+
+    def create_parse_job(self, prompt: str, **kwargs) -> ParseResult:
+        """Create a parse job and return immediately with job_id
+        
+        This creates the job but doesn't wait for completion.
+        Use get_parse_job() and wait_for_parse() to check status.
+        
+        Args:
+            prompt: Natural language instruction
+            **kwargs: Same as parse() method
+        
+        Returns:
+            ParseResult with job_id set but data will be None until job completes
+        """
+        # Use the existing parse logic but don't auto-wait
+        return self.parse_raw_to_result(prompt, **kwargs)
+    
+    def parse_raw_to_result(self, prompt: str, **kwargs) -> ParseResult:
+        """Helper method to convert raw parse response to ParseResult"""
+        from .scraper_client.types import UNSET
+        
+        # Handle output_format conversion
+        output_format = kwargs.get("output_format")
+        output_format_enum = UNSET
+        if output_format is not None:
+            if isinstance(output_format, ParseCreateRequestOutputFormat):
+                output_format_enum = output_format
+            elif isinstance(output_format, str):
+                try:
+                    output_format_enum = ParseCreateRequestOutputFormat(output_format.lower())
+                except ValueError:
+                    output_format_enum = ParseCreateRequestOutputFormat.JSON
+        
+        # Handle schema conversion
+        schema = kwargs.get("schema")
+        schema_obj = UNSET
+        if schema is not None:
+            from .scraper_client.models.parse_create_request_schema import ParseCreateRequestSchema
+            if isinstance(schema, dict):
+                schema_obj = ParseCreateRequestSchema.from_dict(schema)
+            else:
+                schema_obj = schema
+        
+        # Build request
+        request = ParseCreateRequest(
+            prompt=prompt,
+            schema=schema_obj,
+            output_format=output_format_enum,
+            stream=kwargs.get("stream", UNSET),
+            max_depth=kwargs.get("max_depth", UNSET),
+            max_pages=kwargs.get("max_pages", UNSET),
+        )
+        
+        try:
+            resp = parse_sync(client=self._engine, body=request)
+            if resp is None:
+                raise SupacrawlerError("No response from server - check if scraper engine is running")
+            
+            # Handle Error responses
+            if hasattr(resp, "success") and getattr(resp, "success") is False:
+                error_msg = getattr(resp, "error", "Unknown error")
+                from .scraper_client.types import UNSET
+                if error_msg is not UNSET:
+                    raise SupacrawlerError(f"Parse failed: {error_msg}")
+            
+            # Convert to user-friendly ParseResult
+            return ParseResult.from_engine(resp)
+            
+        except UnexpectedStatus as e:
+            error_msg = e.content.decode("utf-8", errors="ignore")
+            try:
+                import json
+                error_data = json.loads(error_msg)
+                if isinstance(error_data, dict) and "error" in error_data:
+                    error_msg = error_data["error"]
+            except (json.JSONDecodeError, TypeError):
+                pass
+
+            if e.status_code == 400:
+                raise SupacrawlerBadRequestError(error_msg, e.status_code, "bad_request") from e
+            elif e.status_code == 422:
+                raise SupacrawlerUnprocessableError(error_msg, e.status_code, "unprocessable") from e
+            elif e.status_code >= 500:
+                raise SupacrawlerServerError(error_msg, e.status_code, "server_error") from e
+            else:
+                raise SupacrawlerError(f"Parse failed: {error_msg}", e.status_code) from e
+
+    def get_parse_job(self, job_id: str) -> ParseJob:
+        """Get parse job status and results by job ID
+        
+        Args:
+            job_id: The job ID returned from parse job creation
+            
+        Returns:
+            ParseJob with current status and results (if completed)
+        """
+        url = f"{self._base_url}/v1/parse/{job_id}"
+        resp = self._client.get(url, headers=self._headers())
+        data = self._handle(resp)
+        return ParseJob.from_api_response(data)
+
+    def wait_for_parse(self, job_id: str, interval_seconds: float = 3.0, timeout_seconds: float = 300.0) -> ParseJob:
+        """Wait for parse job to complete
+        
+        Args:
+            job_id: The job ID to wait for
+            interval_seconds: How often to check status (default: 3.0)
+            timeout_seconds: Maximum time to wait (default: 300.0)
+            
+        Returns:
+            ParseJob with completed results
+        """
+        start = time.time()
+        while True:
+            job = self.get_parse_job(job_id)
+            if job.is_completed or job.is_failed:
+                return job
+            if time.time() - start > timeout_seconds:
+                raise SupacrawlerError(f"Timeout waiting for parse job {job_id}")
+            time.sleep(interval_seconds)
+
+    def parse_get_templates(self):
+        """Get available parse templates and supported content types"""
+        try:
+            resp = parse_templates_sync(client=self._engine)
+            if resp is None:
+                raise SupacrawlerError("No response from server - check if scraper engine is running")
+            return resp
+        except UnexpectedStatus as e:
+            error_msg = e.content.decode("utf-8", errors="ignore")
+            raise SupacrawlerError(f"Failed to get parse templates: {error_msg}", e.status_code) from e
+
+    def parse_get_examples(self):
+        """Get example parse schemas for different content types"""
+        try:
+            resp = parse_examples_sync(client=self._engine)
+            if resp is None:
+                raise SupacrawlerError("No response from server - check if scraper engine is running")
+            return resp
+        except UnexpectedStatus as e:
+            error_msg = e.content.decode("utf-8", errors="ignore")
+            raise SupacrawlerError(f"Failed to get parse examples: {error_msg}", e.status_code) from e
